@@ -30,6 +30,12 @@
  *    - Создаём копию массива [...args] перед изменением
  *    - Иначе повторные вызовы сломаются
  *
+ * 5. ⚠️ ВАЖНО: УСЛОВИЕ ВЫЗОВА fn
+ *    - Проверяем только ПЕРВЫЕ fn.length позиций!
+ *    - args.slice(0, fn.length) — берём первые N элементов
+ *    - Если среди них есть placeholder — НЕ вызываем fn
+ *    - Иначе можно случайно передать placeholder как значение
+ *
  * ============================================================================
  * РЕШЕНИЕ:
  * ============================================================================
@@ -37,11 +43,12 @@
 
 function curry(fn) {
     return function curried(...args) {
-        // Считаем только реальные аргументы (без placeholder)
-        const argsWithoutPlaceholder = args.filter((arg) => arg !== curry.placeholder)
+        // ⚠️ Проверяем только ПЕРВЫЕ fn.length позиций — есть ли там placeholder
+        const firstNArgs = args.slice(0, fn.length)
+        const hasNoPlaceholders = firstNArgs.every((arg) => arg !== curry.placeholder)
 
-        // Если достаточно реальных аргументов — вызываем функцию
-        if (argsWithoutPlaceholder.length >= fn.length) {
+        // Вызываем fn только если первые N позиций заполнены реальными значениями
+        if (firstNArgs.length >= fn.length && hasNoPlaceholders) {
             return fn.apply(this, args)
         }
 
@@ -92,6 +99,9 @@ console.log(curriedJoin(1, _, 3)(2))  // '1_2_3'
 // С falsy значениями (0, false, null — это валидные аргументы!)
 console.log(curriedJoin(0, _, _)(false, null))  // '0_false_null'
 
+// ⚠️ Передача placeholder как НОВОГО аргумента (важный edge case!)
+console.log(curry(join)(_, _, 3, 4)(1, _)(2, 5))  // '1_2_3'
+
 /**
  * ============================================================================
  * EDGE CASES:
@@ -100,6 +110,9 @@ console.log(curriedJoin(0, _, _)(false, null))  // '0_false_null'
  * 1. Falsy значения (0, false, null, ''): работают как обычные аргументы
  * 2. undefined: проверяем через !== undefined, не через truthiness
  * 3. Повторное использование: благодаря копированию массива работает корректно
+ * 4. ⚠️ Placeholder как НОВЫЙ аргумент: curry(join)(_, _)(1, _)(2, 3)
+ *    - Placeholder может быть передан как новый аргумент в следующем вызове
+ *    - Нужно проверять ПЕРВЫЕ N позиций, а не общее количество
  *
  * ============================================================================
  * ЧАСТЫЕ ОШИБКИ:
@@ -110,6 +123,8 @@ console.log(curriedJoin(0, _, _)(false, null))  // '0_false_null'
  * 3. Проверка !!arg вместо arg !== undefined (теряем falsy значения)
  * 4. shift() на каждой итерации, даже если элемент не placeholder
  * 5. args.push(restArgs) вместо args.concat(restArgs) (вложенный массив)
+ * 6. ⚠️ Проверка args.filter(...).length вместо args.slice(0, fn.length)
+ *    - Нужно проверять именно ПЕРВЫЕ N позиций, не все аргументы!
  *
  * ============================================================================
  */
